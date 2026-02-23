@@ -7,6 +7,17 @@ Real-time guitar trainer prototype. Go renders a rolling tab and judges timing a
 - Python 3.12 or 3.11 recommended (aubio build support)
 - PipeWire or ALSA-compatible input
 
+pulseaudio --kill
+
+jack_control start
+
+jack_control exit
+
+pulseaudio --start
+
+## Debian: 
+sudo apt-get install portaudio19-dev  python3-pyaudio  jackd2 
+
 Python dependencies:
 - `aubio`
 - `numpy`
@@ -118,6 +129,13 @@ go run ./cmd/face ./assets/sample_song.json
 python3 ./python/ear.py
 ```
 
+To pick an input device:
+```sh
+EAR_LIST_DEVICES=1 python3 ./python/ear.py
+EAR_DEVICE_INDEX=2 python3 ./python/ear.py
+EAR_DEVICE_NAME="usb audio" python3 ./python/ear.py
+```
+
 Sample bass song:
 ```sh
 STRINGS=4 ./scripts/run.sh ./assets/sample_bass.json
@@ -137,3 +155,8 @@ Edit these constants in `python/ear.py`:
 - `WINDOW_SIZE`
 - `SAMPLE_RATE`
 - `CONFIDENCE_MIN`
+
+Input device selection (environment variables):
+- `EAR_LIST_DEVICES=1` prints available input devices and exits.
+- `EAR_DEVICE_INDEX` selects a device by index (from `EAR_LIST_DEVICES`).
+- `EAR_DEVICE_NAME` selects a device by case-insensitive substring match.

@@ -26,6 +26,9 @@ AI_SEED = os.environ.get("AI_SEED", "")
 AI_LOOP = os.environ.get("AI_LOOP", "1") == "1"
 AI_SONG_OUT = os.environ.get("AI_SONG_OUT", "")
 EAR_STRINGS = int(os.environ.get("EAR_STRINGS", "6"))
+EAR_DEVICE_INDEX = os.environ.get("EAR_DEVICE_INDEX", "")
+EAR_DEVICE_NAME = os.environ.get("EAR_DEVICE_NAME", "")
+EAR_LIST_DEVICES = os.environ.get("EAR_LIST_DEVICES", "") == "1"
 
 
 def main() -> None:
@@ -45,7 +48,9 @@ def main() -> None:
             continue
 
         if time.time() - start_time > CONNECT_RETRY_SEC:
-            raise
+            raise RuntimeError(
+                f"Timed out after {CONNECT_RETRY_SEC}s waiting for socket {SOCKET_PATH}"
+            )
         time.sleep(0.1)
 
     if AI_MODE:
@@ -58,11 +63,17 @@ def main() -> None:
         pitch = None
     else:
         audio = pyaudio.PyAudio()
+        if EAR_LIST_DEVICES:
+            list_input_devices(audio)
+            return
+
+        input_device_index = resolve_input_device(audio, EAR_DEVICE_INDEX, EAR_DEVICE_NAME)
         stream = audio.open(
             format=pyaudio.paFloat32,
             channels=1,
             rate=SAMPLE_RATE,
             input=True,
+            input_device_index=input_device_index,
             frames_per_buffer=BUFFER_SIZE,
         )
 
@@ -196,6 +207,42 @@ def base_frequencies(string_count: int) -> list[float]:
     if string_count == 4:
         return [98.0, 73.42, 55.0, 41.2]  # G2 D2 A1 E1
     return [329.63, 246.94, 196.0, 146.83, 110.0, 82.41]  # E4 B3 G3 D3 A2 E2
+
+
+def list_input_devices(audio: pyaudio.PyAudio) -> None:
+    info = audio.get_host_api_info_by_index(0)
+    count = int(info.get("deviceCount", 0))
+    for idx in range(count):
+        dev = audio.get_device_info_by_host_api_device_index(0, idx)
+        if int(dev.get("maxInputChannels", 0)) <= 0:
+            continue
+        name = dev.get("name", "")
+        rate = dev.get("defaultSampleRate", "")
+        print(f"[{idx}] {name} (rate={rate})")
+
+
+def resolve_input_device(
+    audio: pyaudio.PyAudio, device_index: str, device_name: str
+) -> int | None:
+    if device_index:
+        try:
+            return int(device_index)
+        except ValueError:
+            raise ValueError("EAR_DEVICE_INDEX must be an integer")
+    if not device_name:
+        return None
+
+    info = audio.get_host_api_info_by_index(0)
+    count = int(info.get("deviceCount", 0))
+    device_name = device_name.lower()
+    for idx in range(count):
+        dev = audio.get_device_info_by_host_api_device_index(0, idx)
+        if int(dev.get("maxInputChannels", 0)) <= 0:
+            continue
+        name = str(dev.get("name", "")).lower()
+        if device_name in name:
+            return idx
+    raise ValueError(f"EAR_DEVICE_NAME not found: {device_name}")
 
 
 def write_song(path: str, notes: list[dict]) -> None:
