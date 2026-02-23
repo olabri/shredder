@@ -1,0 +1,134 @@
+{
+  "title": "Neon Overdrive",
+  "bpm": 110.0,
+  "sync_offset_ms": 0,
+  "string_count": 4,
+  "notes": [
+    {
+      "time_ms": 0,
+      "string": 1,
+      "fret": 0,
+      "freq_hz": 98.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 545,
+      "string": 4,
+      "fret": 0,
+      "freq_hz": 41.2,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 1636,
+      "string": 4,
+      "fret": 1,
+      "freq_hz": 43.65,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 3272,
+      "string": 1,
+      "fret": 3,
+      "freq_hz": 116.54,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 3818,
+      "string": 2,
+      "fret": 0,
+      "freq_hz": 73.42,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 4909,
+      "string": 3,
+      "fret": 3,
+      "freq_hz": 65.41,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 6000,
+      "string": 1,
+      "fret": 0,
+      "freq_hz": 98.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 7090,
+      "string": 2,
+      "fret": 2,
+      "freq_hz": 82.41,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 10909,
+      "string": 1,
+      "fret": 2,
+      "freq_hz": 110.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 12545,
+      "string": 3,
+      "fret": 0,
+      "freq_hz": 55.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 13090,
+      "string": 4,
+      "fret": 3,
+      "freq_hz": 49.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 14181,
+      "string": 2,
+      "fret": 0,
+      "freq_hz": 73.42,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 14727,
+      "string": 2,
+      "fret": 2,
+      "freq_hz": 82.41,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 15272,
+      "string": 1,
+      "fret": 1,
+      "freq_hz": 103.83,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 15818,
+      "string": 4,
+      "fret": 1,
+      "freq_hz": 43.65,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 16363,
+      "string": 4,
+      "fret": 2,
+      "freq_hz": 46.25,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 16909,
+      "string": 3,
+      "fret": 0,
+      "freq_hz": 55.0,
+      "duration_ms": 545
+    },
+    {
+      "time_ms": 18545,
+      "string": 1,
+      "fret": 3,
+      "freq_hz": 116.54,
+      "duration_ms": 545
+    }
+  ]
+}
