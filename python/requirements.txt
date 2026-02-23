@@ -1,3 +1,3 @@
-aubio
-numpy
+aubio==0.4.9
+numpy<2.0
 pyaudio

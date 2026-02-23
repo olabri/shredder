@@ -23,6 +23,26 @@ Or with Make:
 make run
 ```
 
+Headless IPC smoke test (no UI):
+```sh
+HEADLESS=1 EAR_FAKE=1 ./scripts/run.sh
+```
+
+Or:
+```sh
+make headless
+```
+
+ASCII UI (terminal-based):
+```sh
+ASCII=1 ./scripts/run.sh
+```
+
+Or:
+```sh
+make ascii
+```
+
 Manual two-terminal setup (prefer Python 3.12/3.11):
 1. Start the Go UI:
 ```sh
