@@ -6,6 +6,8 @@ SONG_PATH=${1:-"$ROOT_DIR/assets/sample_song.json"}
 HEADLESS=${HEADLESS:-0}
 ASCII=${ASCII:-0}
 FAKE=${FAKE:-0}
+VERBOSE=${VERBOSE:-0}
+ASCII_LOG_STDOUT=${ASCII_LOG_STDOUT:-0}
 
 if ! command -v go >/dev/null 2>&1; then
   echo "go not found in PATH" >&2
@@ -62,11 +64,16 @@ fi
 # shellcheck disable=SC1091
 source "$ROOT_DIR/.venv/bin/activate"
 
-pip install --quiet --upgrade pip setuptools wheel
-pip install --quiet "numpy<2.0"
-pip install --quiet pyaudio
+PIP_QUIET="--quiet"
+if [ "$VERBOSE" = "1" ]; then
+  PIP_QUIET=""
+fi
+
+pip install $PIP_QUIET --upgrade pip setuptools wheel
+pip install $PIP_QUIET "numpy<2.0"
+pip install $PIP_QUIET pyaudio
 CFLAGS="${CFLAGS:-} -Wno-incompatible-function-pointer-types" \
-  pip install --quiet --no-build-isolation "aubio==0.4.9"
+  pip install $PIP_QUIET --no-build-isolation "aubio==0.4.9"
 
 GOPATH=${GOPATH:-/tmp/go}
 GOMODCACHE=${GOMODCACHE:-/tmp/go/pkg/mod}
@@ -77,6 +84,15 @@ LOG_FILE="$LOG_DIR/face.log"
 
 mkdir -p "$GOPATH" "$GOMODCACHE" "$GOCACHE" "$LOG_DIR"
 rm -f "$SOCKET_PATH"
+touch "$LOG_FILE"
+
+LOG_TO_STDOUT=0
+if [ "$VERBOSE" = "1" ]; then
+  LOG_TO_STDOUT=1
+fi
+if [ "$ASCII" = "1" ] && [ "$ASCII_LOG_STDOUT" = "1" ]; then
+  LOG_TO_STDOUT=1
+fi
 
 if [ "$ASCII" = "1" ]; then
   ( \
@@ -95,11 +111,20 @@ else
   ) >"$LOG_FILE" 2>&1 &
 fi
 FACE_PID=$!
+TAIL_PID=""
 
 cleanup() {
   kill "$FACE_PID" >/dev/null 2>&1 || true
+  if [ -n "$TAIL_PID" ]; then
+    kill "$TAIL_PID" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
+
+if [ "$LOG_TO_STDOUT" = "1" ]; then
+  tail -n +1 -f "$LOG_FILE" &
+  TAIL_PID=$!
+fi
 
 for _ in $(seq 1 50); do
   if [ -S "$SOCKET_PATH" ]; then

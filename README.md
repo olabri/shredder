@@ -43,6 +43,16 @@ Or:
 make ascii
 ```
 
+ASCII UI with live stdout (not just tmp/face.log):
+```sh
+ASCII=1 ASCII_LOG_STDOUT=1 ./scripts/run.sh
+```
+
+Verbose logs for any mode:
+```sh
+VERBOSE=1 ./scripts/run.sh
+```
+
 Manual two-terminal setup (prefer Python 3.12/3.11):
 1. Start the Go UI:
 ```sh
