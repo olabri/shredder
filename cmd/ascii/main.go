@@ -21,8 +21,9 @@ const (
 	timingSlackMs     = 80
 	confidenceMin     = 0.80
 	scrollSpeedColsMs = 0.03
-	hitLineCol        = 10
-	laneCount         = 6
+	hitLineCol        = 14
+	screenWidth       = 80
+	gutterWidth       = 4
 	frameDelay        = 33 * time.Millisecond
 )
 
@@ -35,10 +36,11 @@ type Note struct {
 }
 
 type Song struct {
-	Title        string `json:"title"`
+	Title        string  `json:"title"`
 	BPM          float64 `json:"bpm"`
-	SyncOffsetMs int64  `json:"sync_offset_ms"`
-	Notes        []Note `json:"notes"`
+	SyncOffsetMs int64   `json:"sync_offset_ms"`
+	StringCount  int     `json:"string_count"`
+	Notes        []Note  `json:"notes"`
 }
 
 type PitchMessage struct {
@@ -56,6 +58,7 @@ type NoteState struct {
 func main() {
 	songPath := flag.String("song", "", "path to song JSON")
 	socketPath := flag.String("socket", defaultSocketPath, "unix socket path")
+	stringsFlag := flag.Int("strings", 0, "number of strings (4 or 6)")
 	flag.Parse()
 
 	if *songPath == "" {
@@ -76,6 +79,13 @@ func main() {
 	start := time.Now()
 	lastUpdate := time.Now()
 	var lastPitch PitchMessage
+	stringCount := song.StringCount
+	if stringCount == 0 {
+		stringCount = 6
+	}
+	if *stringsFlag > 0 {
+		stringCount = *stringsFlag
+	}
 
 	clearScreen()
 	for {
@@ -98,7 +108,7 @@ func main() {
 		elapsedMs := now.Sub(start).Milliseconds() + song.SyncOffsetMs
 		judgeNotes(elapsedMs, deltaMs, song.Notes, states, lastPitch)
 
-		render(elapsedMs, song, states, lastPitch)
+		render(elapsedMs, song, states, lastPitch, stringCount)
 		time.Sleep(frameDelay)
 	}
 }
@@ -225,21 +235,30 @@ func pitchMatches(note Note, lastPitch PitchMessage) bool {
 	return math.Abs(cents) <= pitchToleranceC
 }
 
-func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessage) {
-	width := 80
-	header := fmt.Sprintf("%s | time=%dms | pitch=%.2fHz conf=%.2f", song.Title, elapsedMs, lastPitch.Freq, lastPitch.Conf)
+func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessage, stringCount int) {
+	width := screenWidth
+	header := fmt.Sprintf("%s | strings=%d | time=%dms | pitch=%.2fHz conf=%.2f", song.Title, stringCount, elapsedMs, lastPitch.Freq, lastPitch.Conf)
 	if len(header) > width {
 		header = header[:width]
 	}
 
-	lines := make([]string, 0, laneCount+4)
+	lines := make([]string, 0, stringCount+4)
 	lines = append(lines, pad(header, width))
 	lines = append(lines, strings.Repeat("-", width))
 
-	for lane := 1; lane <= laneCount; lane++ {
+	for lane := 1; lane <= stringCount; lane++ {
 		row := make([]rune, width)
 		for i := range row {
 			row[i] = ' '
+		}
+		label := stringLabel(stringCount, lane)
+		for i, ch := range label {
+			if i < gutterWidth {
+				row[i] = ch
+			}
+		}
+		if gutterWidth-1 < width {
+			row[gutterWidth-1] = ' '
 		}
 		if hitLineCol >= 0 && hitLineCol < width {
 			row[hitLineCol] = '|'
@@ -253,13 +272,21 @@ func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessa
 			if col < 0 || col >= width {
 				continue
 			}
-			ch := 'o'
 			if states[i].Hit {
-				ch = 'x'
-			} else if states[i].Miss {
-				ch = '!'
+				row[col] = 'x'
+				continue
 			}
-			row[col] = ch
+			if states[i].Miss {
+				row[col] = '!'
+				continue
+			}
+
+			fretText := fmt.Sprintf("%d", note.Fret)
+			for j, ch := range fretText {
+				if col+j >= 0 && col+j < width {
+					row[col+j] = ch
+				}
+			}
 		}
 
 		lines = append(lines, string(row))
@@ -302,6 +329,33 @@ func pad(s string, width int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", width-len(s))
+}
+
+func stringLabel(stringCount, lane int) string {
+	name := stringName(stringCount, lane)
+	if name == "" {
+		return fmt.Sprintf("S%d", lane)
+	}
+	if len(name) >= gutterWidth {
+		return name[:gutterWidth]
+	}
+	return name + strings.Repeat(" ", gutterWidth-len(name))
+}
+
+func stringName(stringCount, lane int) string {
+	if lane < 1 || lane > stringCount {
+		return ""
+	}
+	switch stringCount {
+	case 6:
+		names := []string{"E4", "B3", "G3", "D3", "A2", "E2"}
+		return names[lane-1]
+	case 4:
+		names := []string{"G2", "D2", "A1", "E1"}
+		return names[lane-1]
+	default:
+		return ""
+	}
 }
 
 func absInt64(v int64) int64 {

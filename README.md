@@ -43,6 +43,16 @@ Or:
 make ascii
 ```
 
+Select 4 vs 6 strings:
+```sh
+STRINGS=4 ASCII=1 ./scripts/run.sh
+```
+
+Or for the UI:
+```sh
+STRINGS=4 ./scripts/run.sh
+```
+
 ASCII UI with live stdout (not just tmp/face.log):
 ```sh
 ASCII=1 ASCII_LOG_STDOUT=1 ./scripts/run.sh
@@ -62,6 +72,11 @@ go run ./cmd/face ./assets/sample_song.json
 2. In another terminal, start the Python ear:
 ```sh
 python3 ./python/ear.py
+```
+
+Sample bass song:
+```sh
+STRINGS=4 ./scripts/run.sh ./assets/sample_bass.json
 ```
 
 Press `Space` in the Go window to pause or resume.

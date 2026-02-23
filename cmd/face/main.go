@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"image/color"
 	"log"
@@ -27,7 +28,7 @@ const (
 	hitLineX          = 160
 	noteRadius        = 14
 	scrollSpeedPxMs   = 0.30
-	pitchToleranceC  = 25.0
+	pitchToleranceC   = 25.0
 	timingSlackMs     = 80
 	confidenceMin     = 0.80
 	defaultSocketPath = "/tmp/guitar_ear.sock"
@@ -42,10 +43,11 @@ type Note struct {
 }
 
 type Song struct {
-	Title        string `json:"title"`
+	Title        string  `json:"title"`
 	BPM          float64 `json:"bpm"`
-	SyncOffsetMs int64  `json:"sync_offset_ms"`
-	Notes        []Note `json:"notes"`
+	SyncOffsetMs int64   `json:"sync_offset_ms"`
+	StringCount  int     `json:"string_count"`
+	Notes        []Note  `json:"notes"`
 }
 
 type PitchMessage struct {
@@ -72,26 +74,44 @@ type Game struct {
 	elapsedMs   int64
 	socketPath  string
 	spaceDown   bool
+	stringCount int
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("usage: %s <song.json>", os.Args[0])
+	songPath := flag.String("song", "", "path to song JSON")
+	stringsFlag := flag.Int("strings", 0, "number of strings (4 or 6)")
+	flag.Parse()
+
+	path := *songPath
+	if path == "" && flag.NArg() > 0 {
+		path = flag.Arg(0)
+	}
+	if path == "" {
+		log.Fatalf("usage: %s -song <song.json> [-strings N]", os.Args[0])
 	}
 
-	song, err := loadSong(os.Args[1])
+	song, err := loadSong(path)
 	if err != nil {
 		log.Fatalf("load song: %v", err)
 	}
 
+	stringCount := song.StringCount
+	if stringCount == 0 {
+		stringCount = 6
+	}
+	if *stringsFlag > 0 {
+		stringCount = *stringsFlag
+	}
+
 	g := &Game{
-		song:       song,
-		noteStates: make([]NoteState, len(song.Notes)),
-		pitchChan:  make(chan PitchMessage, 64),
-		playing:    true,
-		startTime:  time.Now(),
-		lastUpdate: time.Now(),
-		socketPath: defaultSocketPath,
+		song:        song,
+		noteStates:  make([]NoteState, len(song.Notes)),
+		pitchChan:   make(chan PitchMessage, 64),
+		playing:     true,
+		startTime:   time.Now(),
+		lastUpdate:  time.Now(),
+		socketPath:  defaultSocketPath,
+		stringCount: stringCount,
 	}
 
 	if err := g.startSocketServer(); err != nil {
@@ -284,9 +304,13 @@ func (g *Game) pitchMatches(note Note) bool {
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{18, 18, 20, 255})
 
-	for i := 0; i < 6; i++ {
+	for i := 0; i < g.stringCount; i++ {
 		y := float32(laneTop + i*laneHeight)
 		vector.StrokeLine(screen, 0, y, windowWidth, y, 2, color.RGBA{80, 80, 90, 255}, true)
+		label := stringName(g.stringCount, i+1)
+		if label != "" {
+			ebitenutil.DebugPrintAt(screen, label, 8, int(y-10))
+		}
 	}
 
 	vector.StrokeLine(screen, hitLineX, 0, hitLineX, windowHeight, 3, color.RGBA{240, 200, 60, 255}, true)
@@ -298,7 +322,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 
 		y := float32(laneTop + (note.String-1)*laneHeight)
-		if note.String < 1 || note.String > 6 {
+		if note.String < 1 || note.String > g.stringCount {
 			continue
 		}
 
@@ -321,6 +345,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	seb := ebitenutil.DebugPrintAt
 	seb(screen, status, 16, 16)
+}
+
+func stringName(stringCount, lane int) string {
+	if lane < 1 || lane > stringCount {
+		return ""
+	}
+	switch stringCount {
+	case 6:
+		names := []string{"E4", "B3", "G3", "D3", "A2", "E2"}
+		return names[lane-1]
+	case 4:
+		names := []string{"G2", "D2", "A1", "E1"}
+		return names[lane-1]
+	default:
+		return ""
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

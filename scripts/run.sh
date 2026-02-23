@@ -8,6 +8,11 @@ ASCII=${ASCII:-0}
 FAKE=${FAKE:-0}
 VERBOSE=${VERBOSE:-0}
 ASCII_LOG_STDOUT=${ASCII_LOG_STDOUT:-0}
+STRINGS=${STRINGS:-}
+STRINGS_ARG=()
+if [ -n "$STRINGS" ]; then
+  STRINGS_ARG=(-strings "$STRINGS")
+fi
 
 if ! command -v go >/dev/null 2>&1; then
   echo "go not found in PATH" >&2
@@ -97,7 +102,7 @@ fi
 if [ "$ASCII" = "1" ]; then
   ( \
     GOPATH="$GOPATH" GOMODCACHE="$GOMODCACHE" GOCACHE="$GOCACHE" \
-    go run "$ROOT_DIR/cmd/ascii" -song "$SONG_PATH" \
+    go run "$ROOT_DIR/cmd/ascii" -song "$SONG_PATH" "${STRINGS_ARG[@]}" \
   ) >"$LOG_FILE" 2>&1 &
 elif [ "$HEADLESS" = "1" ]; then
   ( \
@@ -107,7 +112,7 @@ elif [ "$HEADLESS" = "1" ]; then
 else
   ( \
     GOPATH="$GOPATH" GOMODCACHE="$GOMODCACHE" GOCACHE="$GOCACHE" \
-    go run "$ROOT_DIR/cmd/face" "$SONG_PATH" \
+    go run "$ROOT_DIR/cmd/face" -song "$SONG_PATH" "${STRINGS_ARG[@]}" \
   ) >"$LOG_FILE" 2>&1 &
 fi
 FACE_PID=$!
