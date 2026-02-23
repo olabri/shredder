@@ -63,6 +63,50 @@ Verbose logs for any mode:
 VERBOSE=1 ./scripts/run.sh
 ```
 
+## Controls
+Go UI:
+- `Space` pause/resume
+- `S` stop/reset
+- `+` / `-` or numpad `+` / `-` adjust speed (0.5x–2.0x)
+
+ASCII UI:
+- `p` toggle pause/resume
+- `s` stop/reset
+- `+` / `-` adjust speed (0.5x–2.0x)
+- `q` quit
+
+## Creating Patterns And MP3 Analysis
+See `docs/patterns-and-mp3.md` for the full guide.
+
+## Pattern Generator (CLI)
+Generate a practice pattern (algorithmic mode):
+```sh
+python3 ./scripts/generate_pattern.py -o ./assets/generated_song.json --bpm 110 --difficulty 2 --length 30 --strings 6 --seed 42
+```
+
+Then run it:
+```sh
+./scripts/run.sh ./assets/generated_song.json
+```
+
+Use an MP3 to default the song length (requires `ffprobe`):
+```sh
+python3 ./scripts/generate_pattern.py --mp3 ./assets/example.mp3 -o ./assets/generated_song.json --bpm 110 --difficulty 2 --strings 6
+```
+
+## Hair Metal Example (PCM)
+Generate the synthetic hair metal track and lyrics:
+```sh
+python3 scripts/generate_hair_metal_pcm.py
+```
+
+Outputs:
+- `assets/hair_metal.pcm` (raw PCM, 44.1kHz, stereo)
+- `assets/hair_metal.wav` (PCM in a WAV container)
+
+Lyrics and structure:
+- `docs/hair-metal-song.md`
+
 Manual two-terminal setup (prefer Python 3.12/3.11):
 1. Start the Go UI:
 ```sh

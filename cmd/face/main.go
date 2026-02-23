@@ -17,6 +17,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -67,14 +68,14 @@ type Game struct {
 	noteStates  []NoteState
 	pitchChan   chan PitchMessage
 	lastPitch   PitchMessage
-	startTime   time.Time
 	lastUpdate  time.Time
 	playing     bool
 	mutex       sync.Mutex
+	elapsed     float64
 	elapsedMs   int64
 	socketPath  string
-	spaceDown   bool
 	stringCount int
+	speed       float64
 }
 
 func main() {
@@ -108,11 +109,13 @@ func main() {
 		noteStates:  make([]NoteState, len(song.Notes)),
 		pitchChan:   make(chan PitchMessage, 64),
 		playing:     true,
-		startTime:   time.Now(),
 		lastUpdate:  time.Now(),
 		socketPath:  defaultSocketPath,
 		stringCount: stringCount,
+		speed:       1.0,
 	}
+	g.elapsed = float64(song.SyncOffsetMs)
+	g.elapsedMs = song.SyncOffsetMs
 
 	if err := g.startSocketServer(); err != nil {
 		log.Fatalf("socket server: %v", err)
@@ -189,13 +192,17 @@ func (g *Game) handleConn(conn net.Conn) {
 }
 
 func (g *Game) Update() error {
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		if !g.spaceDown {
-			g.togglePlay()
-			g.spaceDown = true
-		}
-	} else {
-		g.spaceDown = false
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		g.togglePlay()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		g.stop()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyEqual) || inpututil.IsKeyJustPressed(ebiten.KeyKPAdd) {
+		g.adjustSpeed(0.1)
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyMinus) || inpututil.IsKeyJustPressed(ebiten.KeyKPSubtract) {
+		g.adjustSpeed(-0.1)
 	}
 
 	now := time.Now()
@@ -215,12 +222,11 @@ func (g *Game) Update() error {
 	}
 
 done:
-	if !g.playing {
-		return nil
+	if g.playing {
+		g.elapsed += float64(deltaMs) * g.speed
+		g.elapsedMs = int64(g.elapsed) + g.song.SyncOffsetMs
+		g.judgeNotes(int64(float64(deltaMs) * g.speed))
 	}
-
-	g.elapsedMs = now.Sub(g.startTime).Milliseconds() + g.song.SyncOffsetMs
-	g.judgeNotes(deltaMs)
 
 	return nil
 }
@@ -235,8 +241,33 @@ func (g *Game) togglePlay() {
 	}
 
 	g.playing = true
-	g.startTime = time.Now().Add(-time.Duration(g.elapsedMs) * time.Millisecond)
 	g.lastUpdate = time.Now()
+}
+
+func (g *Game) stop() {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	g.playing = false
+	g.elapsed = 0
+	g.elapsedMs = g.song.SyncOffsetMs
+	g.lastUpdate = time.Now()
+	for i := range g.noteStates {
+		g.noteStates[i] = NoteState{}
+	}
+}
+
+func (g *Game) adjustSpeed(delta float64) {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	g.speed += delta
+	if g.speed < 0.5 {
+		g.speed = 0.5
+	}
+	if g.speed > 2.0 {
+		g.speed = 2.0
+	}
 }
 
 func (g *Game) judgeNotes(deltaMs int64) {
@@ -339,9 +370,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	accuracy := g.accuracy()
-	status := fmt.Sprintf("%s | Accuracy: %.1f%% | Pitch: %.2f Hz (%.2f)", g.song.Title, accuracy, g.lastPitch.Freq, g.lastPitch.Conf)
+	status := fmt.Sprintf("%s | Accuracy: %.1f%% | Speed: %.1fx | Pitch: %.2f Hz (%.2f)", g.song.Title, accuracy, g.speed, g.lastPitch.Freq, g.lastPitch.Conf)
 	if !g.playing {
-		status = "Paused - press Space to resume"
+		status = "Paused - Space: resume | S: stop | +/-: speed"
 	}
 	seb := ebitenutil.DebugPrintAt
 	seb(screen, status, 16, 16)

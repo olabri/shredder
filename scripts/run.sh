@@ -86,6 +86,7 @@ GOCACHE=${GOCACHE:-/tmp/go-build}
 SOCKET_PATH=${SOCKET_PATH:-/tmp/guitar_ear.sock}
 LOG_DIR="$ROOT_DIR/tmp"
 LOG_FILE="$LOG_DIR/face.log"
+TAIL_PID=""
 
 mkdir -p "$GOPATH" "$GOMODCACHE" "$GOCACHE" "$LOG_DIR"
 rm -f "$SOCKET_PATH"
@@ -100,10 +101,32 @@ if [ "$ASCII" = "1" ] && [ "$ASCII_LOG_STDOUT" = "1" ]; then
 fi
 
 if [ "$ASCII" = "1" ]; then
-  ( \
+  if [ "$FAKE" = "1" ] && [ -z "${EAR_FAKE:-}" ]; then
+    export EAR_FAKE=1
+  fi
+  export SOCKET_PATH
+  export EAR_CONNECT_RETRY_SEC=10
+
+  # Start ear first; it will retry until ASCII server is ready.
+  "$PYTHON_BIN" "$ROOT_DIR/python/ear.py" &
+  EAR_PID=$!
+
+  cleanup() {
+    kill "$EAR_PID" >/dev/null 2>&1 || true
+    if [ -n "$TAIL_PID" ]; then
+      kill "$TAIL_PID" >/dev/null 2>&1 || true
+    fi
+  }
+  trap cleanup EXIT
+
+  if [ "$LOG_TO_STDOUT" = "1" ]; then
     GOPATH="$GOPATH" GOMODCACHE="$GOMODCACHE" GOCACHE="$GOCACHE" \
-    go run "$ROOT_DIR/cmd/ascii" -song "$SONG_PATH" "${STRINGS_ARG[@]}" \
-  ) >"$LOG_FILE" 2>&1 &
+      go run "$ROOT_DIR/cmd/ascii" -song "$SONG_PATH" "${STRINGS_ARG[@]}" | tee "$LOG_FILE"
+  else
+    GOPATH="$GOPATH" GOMODCACHE="$GOMODCACHE" GOCACHE="$GOCACHE" \
+      go run "$ROOT_DIR/cmd/ascii" -song "$SONG_PATH" "${STRINGS_ARG[@]}" >"$LOG_FILE" 2>&1
+  fi
+  exit 0
 elif [ "$HEADLESS" = "1" ]; then
   ( \
     GOPATH="$GOPATH" GOMODCACHE="$GOMODCACHE" GOCACHE="$GOCACHE" \

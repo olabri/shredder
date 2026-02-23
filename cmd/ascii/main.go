@@ -76,9 +76,6 @@ func main() {
 	}
 
 	states := make([]NoteState, len(song.Notes))
-	start := time.Now()
-	lastUpdate := time.Now()
-	var lastPitch PitchMessage
 	stringCount := song.StringCount
 	if stringCount == 0 {
 		stringCount = 6
@@ -86,6 +83,15 @@ func main() {
 	if *stringsFlag > 0 {
 		stringCount = *stringsFlag
 	}
+	lastUpdate := time.Now()
+	var lastPitch PitchMessage
+	playing := true
+	speed := 1.0
+	elapsed := float64(song.SyncOffsetMs)
+	elapsedMs := song.SyncOffsetMs
+
+	cmdChan := make(chan rune, 8)
+	go readCommands(cmdChan)
 
 	clearScreen()
 	for {
@@ -105,10 +111,44 @@ func main() {
 			}
 		}
 	done:
-		elapsedMs := now.Sub(start).Milliseconds() + song.SyncOffsetMs
-		judgeNotes(elapsedMs, deltaMs, song.Notes, states, lastPitch)
+		for {
+			select {
+			case cmd, ok := <-cmdChan:
+				if !ok {
+					cmdChan = nil
+					continue
+				}
+				switch cmd {
+				case 'p', 'P':
+					playing = !playing
+				case 'r', 'R':
+					playing = true
+				case 's', 'S':
+					playing = false
+					elapsed = 0
+					elapsedMs = song.SyncOffsetMs
+					resetStates(states)
+				case '+', '=':
+					speed = clamp(speed+0.1, 0.5, 2.0)
+				case '-':
+					speed = clamp(speed-0.1, 0.5, 2.0)
+				case 'q', 'Q':
+					return
+				}
+			default:
+				goto controlsDone
+			}
+		}
+	controlsDone:
 
-		render(elapsedMs, song, states, lastPitch, stringCount)
+		if playing {
+			scaledDelta := int64(float64(deltaMs) * speed)
+			elapsed += float64(deltaMs) * speed
+			elapsedMs = int64(elapsed) + song.SyncOffsetMs
+			judgeNotes(elapsedMs, scaledDelta, song.Notes, states, lastPitch)
+		}
+
+		render(elapsedMs, song, states, lastPitch, stringCount, playing, speed)
 		time.Sleep(frameDelay)
 	}
 }
@@ -235,9 +275,14 @@ func pitchMatches(note Note, lastPitch PitchMessage) bool {
 	return math.Abs(cents) <= pitchToleranceC
 }
 
-func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessage, stringCount int) {
+func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessage, stringCount int, playing bool, speed float64) {
 	width := screenWidth
-	header := fmt.Sprintf("%s | strings=%d | time=%dms | pitch=%.2fHz conf=%.2f", song.Title, stringCount, elapsedMs, lastPitch.Freq, lastPitch.Conf)
+	status := "PLAY"
+	if !playing {
+		status = "PAUSE"
+	}
+	header := fmt.Sprintf("%s | strings=%d | %s | speed=%.1fx | time=%dms | pitch=%.2fHz conf=%.2f",
+		song.Title, stringCount, status, speed, elapsedMs, lastPitch.Freq, lastPitch.Conf)
 	if len(header) > width {
 		header = header[:width]
 	}
@@ -293,10 +338,41 @@ func render(elapsedMs int64, song Song, states []NoteState, lastPitch PitchMessa
 	}
 
 	lines = append(lines, strings.Repeat("-", width))
-	lines = append(lines, pad(fmt.Sprintf("accuracy: %.1f%%", accuracy(states)), width))
+	lines = append(lines, pad(fmt.Sprintf("accuracy: %.1f%% | controls: p=toggle s=stop +/-=speed q=quit", accuracy(states)), width))
 
 	moveHome()
 	fmt.Println(strings.Join(lines, "\n"))
+}
+
+func readCommands(cmdChan chan<- rune) {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		r, _, err := reader.ReadRune()
+		if err != nil {
+			close(cmdChan)
+			return
+		}
+		if r == '\n' || r == '\r' {
+			continue
+		}
+		cmdChan <- r
+	}
+}
+
+func resetStates(states []NoteState) {
+	for i := range states {
+		states[i] = NoteState{}
+	}
+}
+
+func clamp(value, min, max float64) float64 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
 }
 
 func accuracy(states []NoteState) float64 {
