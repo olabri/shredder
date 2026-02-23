@@ -1,0 +1,15 @@
+{
+  "title": "Sample Scale",
+  "bpm": 120,
+  "sync_offset_ms": 0,
+  "notes": [
+    {"time_ms": 0, "string": 5, "fret": 0, "freq_hz": 110.00, "duration_ms": 0},
+    {"time_ms": 500, "string": 5, "fret": 2, "freq_hz": 123.47, "duration_ms": 0},
+    {"time_ms": 1000, "string": 5, "fret": 3, "freq_hz": 130.81, "duration_ms": 0},
+    {"time_ms": 1500, "string": 4, "fret": 0, "freq_hz": 146.83, "duration_ms": 0},
+    {"time_ms": 2000, "string": 4, "fret": 2, "freq_hz": 164.81, "duration_ms": 0},
+    {"time_ms": 2500, "string": 4, "fret": 3, "freq_hz": 174.61, "duration_ms": 0},
+    {"time_ms": 3000, "string": 3, "fret": 0, "freq_hz": 196.00, "duration_ms": 0},
+    {"time_ms": 3500, "string": 3, "fret": 2, "freq_hz": 220.00, "duration_ms": 0}
+  ]
+}
